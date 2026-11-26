@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nuestro universo · Brisa</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;1,400;1,600&family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+/* VOICE: íntimo, mágico, silencioso — un cielo que solo existe para ella
+   IDEA: un planetario privado; el cielo se mueve con su dedo y guarda recuerdos
+   PICTURE: la bóveda de estrellas a pantalla completa, 8 corazones que laten
+   COLOUR and TYPE: noche ciruela, rosa brisa, oro de luna; Cormorant itálica + Nunito
+   LAYOUT: cielo a sangre, contador arriba, tarjeta de recuerdo centrada, final en corazón */
+:root{color-scheme:dark;--bg:#0f0819;--ink:#f6eefc;--soft:#c9b6dc;--rose:#ff7fa3;--rose2:#ffb8cb;--gold:#ffe3a3;--card:rgba(32,16,50,.82)}
+*{box-sizing:border-box;min-width:0}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font:17px/1.55 Nunito,system-ui,sans-serif}
+#c{position:fixed;inset:0;width:100%;height:100%;touch-action:none;cursor:grab;display:block}
+#c.drag{cursor:grabbing}
+h1,h2{font-family:"Cormorant Garamond",Georgia,serif;font-weight:400;font-style:italic;line-height:1.08;margin:0;text-wrap:balance}
+.hud{position:fixed;left:0;right:0;top:0;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:max(16px,env(safe-area-inset-top)) max(4vw,16px) 0;pointer-events:none;z-index:2}
+.hud h1{font-size:clamp(24px,4vw,34px);color:var(--rose2)}
+.prog{text-align:right;font-size:16px;font-weight:700;color:var(--soft)}
+.dots{display:flex;gap:6px;justify-content:flex-end;margin-top:6px}
+.dots i{width:13px;height:13px;border-radius:50%;border:1px solid var(--rose2);transition:.4s}
+.dots i.on{background:var(--gold);border-color:var(--gold);box-shadow:0 0 10px var(--gold)}
+.hint{position:fixed;left:0;right:0;bottom:max(20px,env(safe-area-inset-bottom));text-align:center;font-size:18px;font-weight:600;color:var(--soft);pointer-events:none;z-index:2;transition:opacity .8s;padding:0 16px}
+.layer{position:fixed;inset:0;display:grid;place-items:center;padding:20px;z-index:5;transition:opacity .7s}
+.layer.hide{opacity:0;pointer-events:none}
+.intro{background:radial-gradient(ellipse at center,rgba(15,8,25,.55),rgba(15,8,25,.92))}
+.introbox{text-align:center;max-width:540px}
+.introbox h2{font-size:clamp(44px,9vw,84px);color:#fff6e0;text-shadow:0 0 40px rgba(255,127,163,.5)}
+.introbox p{color:var(--soft);margin:16px auto 26px;max-width:42ch}
+button.b{font:700 16px Nunito,sans-serif;min-height:48px;padding:0 28px;border-radius:999px;border:1px solid var(--rose);background:var(--rose);color:#2a0f2f;cursor:pointer;transition:.2s}
+button.b:hover{background:var(--rose2)}
+button.b.ghost{background:transparent;color:var(--ink);border-color:var(--rose2)}
+button.b.ghost:hover{background:rgba(255,127,163,.15)}
+button.b:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
+.card{background:var(--card);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(255,184,203,.3);border-radius:22px;padding:clamp(26px,5vw,44px);max-width:480px;width:100%;box-shadow:0 30px 90px rgba(0,0,0,.6),0 0 60px rgba(255,127,163,.15);transform:scale(.92) translateY(10px);transition:transform .6s cubic-bezier(.2,.9,.3,1.2)}
+.layer:not(.hide) .card{transform:none}
+.num{font-size:14px;color:var(--gold);font-weight:700}
+.card h2{font-size:clamp(32px,6vw,44px);color:#fff6e0;margin:6px 0 14px}
+.card p{font-family:"Cormorant Garamond",Georgia,serif;font-size:clamp(21px,3vw,24px);line-height:1.45;margin:0 0 24px;color:var(--ink)}
+.final{pointer-events:none}
+.finalbox{text-align:center;max-width:560px;margin-top:56vh}
+.finalbox p{font-family:"Cormorant Garamond",serif;font-style:italic;font-size:clamp(22px,3.4vw,28px);line-height:1.4;color:#fff6e0;margin:0 0 8px;text-shadow:0 2px 20px #0f0819}
+.finalbox .firma{color:var(--rose2);font-size:clamp(20px,3vw,24px)}
+.finalbox button{pointer-events:auto;margin-top:20px}
+@media(max-width:600px){.hud h1{font-size:22px}.finalbox{margin-top:58vh}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<canvas id="c" tabindex="0" aria-label="Cielo de estrellas. Arrastra para girarlo, toca los corazones. Con el teclado: flechas para girar, Enter para abrir el corazón más cercano al centro."></canvas>
+
+<div class="hud">
+  <h1>El universo de Brenchi</h1>
+  <div class="prog"><span id="cnt">0 de 8 corazones</span><div class="dots" id="dots"></div></div>
+</div>
+<div class="hint" id="hint">Arrastra para girar el cielo · toca los corazones</div>
+
+<div class="layer intro" id="intro">
+  <div class="introbox">
+    <h2>Brenda</h2>
+    <p>Este universo lo hice solo para ti. Escondí 8 corazones que guardan algo nuestro. Gira el universo, encuéntralas todas… y mira lo que pasa al final.</p>
+    <button class="b" id="go">Entrar al universo</button>
+  </div>
+</div>
+
+<div class="layer hide" id="modal" role="dialog" aria-modal="true" aria-labelledby="mt">
+  <div class="card">
+    <div class="num" id="mn"></div>
+    <h2 id="mt"></h2>
+    <p id="mp"></p>
+    <button class="b" id="close">Seguir buscando</button>
+  </div>
+</div>
+
+<div class="layer final hide" id="final">
+  <div class="finalbox">
+    <p>De todas las estrellas de este universo, tú eres la que más brilla.</p>
+    <p class="firma">Te amo, Brenda. Cris</p>
+    <button class="b ghost" id="again">Volver a explorar</button>
+  </div>
+</div>
+
+<script>
+{
+/* Recuerdos: cambia títulos y textos por los de ustedes */
+const MEM=[
+ {t:'Donde empezó todo',p:'Fines de octubre. No sabía que una persona al otro lado del mundo iba a cambiarme los días. Y aquí estamos o estuvimos jaja.'},
+ {t:'Invente un forma de amarte y te encantó. Desde entonces, cada vez que corre viento, pienso en nosotros, te QUIEAMODORO MI PRINCESAAA.'},
+ {t:'Nuestras llamadas',p:'Mi momento favorito del día es cuando suena tu llamada. Todo lo demás puede esperar pes.'},
+ {t:'Dos relojes',p:'Cuando en Lima es mediodía, en Italia ya cae la tarde. Aprendí a vivir con dos horas: la mía y la tuya jaja que romanticoo.'},
+ {t:'Tus clases',p:'De 5 a 9 o hasta las 11 de la noche estás estudiando. Yo desde aquí, orgulloso de ti, esperando a que termines para escucharte ti.'},
+ {t:'1 de abril',p:'Tu cumpleaños ya está marcado en mi calendario con todos los corazones posibles. Prepárate para la sopresa jaja.'},
+ {t:'365',p:'Te prometí un mensaje nuevo cada día durante un año. No es solo una promesa, es un plan que te lo voy a cumplir.'},
+ {t:'Algún día',p:'Algún día esta distancia va a ser cero. Y en vez de mirarte en una pantalla, te voy a abrasar y voy a mirar esa hermosa cornea.'}
+];
+const $=id=>document.getElementById(id);
+const cv=$('c'),cx=cv.getContext('2d');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let W,H,F,DPR;
+const resize=()=>{DPR=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;cv.width=W*DPR;cv.height=H*DPR;cx.setTransform(DPR,0,0,DPR,0,0);F=Math.max(W,H)*.62;};
+resize();addEventListener('resize',resize);
+
+/* Puntos en la esfera celeste */
+const dir=(yaw,pitch)=>[Math.sin(yaw)*Math.cos(pitch),Math.sin(pitch),Math.cos(yaw)*Math.cos(pitch)];
+const rnd=()=>{const u=Math.random()*2-1,a=Math.random()*6.283,s=Math.sqrt(1-u*u);return[s*Math.cos(a),u,s*Math.sin(a)];};
+const tints=['255,246,224','255,214,228','214,224,255','255,236,200'];
+const stars=Array.from({length:2200},()=>({v:rnd(),r:Math.random()**3*1.8+.35,ph:Math.random()*6.28,sp:.6+Math.random()*1.8,c:tints[Math.random()*4|0]}));
+const neb=[[.4,.1,'120,50,160'],[2.2,-.2,'200,70,120'],[3.6,.25,'70,60,170'],[5.1,-.05,'170,60,150']].map(([y,p,c])=>({v:dir(y,p),c}));
+const spec=MEM.map((m,i)=>({...m,v:dir(i*0.785+0.25,(i%2?.18:-.12)+(i%3-1)*.06),found:false,i}));
+
+/* Cámara */
+let yaw=0.25,pitch=0,vy=.0006,vp=0,drag=null,started=false,mode='explore',lastT=0;
+const rot=v=>{const cy=Math.cos(yaw),sy=Math.sin(yaw),cp=Math.cos(pitch),sp=Math.sin(pitch);
+  let x=v[0]*cy-v[2]*sy,z=v[0]*sy+v[2]*cy;let y=v[1]*cp-z*sp;z=v[1]*sp+z*cp;return[x,y,z];};
+const proj=v=>{const[x,y,z]=rot(v);if(z<=.05)return null;return{x:W/2+F*x/z,y:H/2-F*y/z,z,rx:x};};
+
+/* Final: corazón */
+let fin=null;
+const heartPts=n=>{const s=Math.min(W*.022,H*.014),cxh=W/2,cyh=H*.3,o=[];for(let i=0;i<n;i++){const t=i/n*6.283;
+  o.push({x:cxh+s*16*Math.sin(t)**3,y:cyh-s*(13*Math.cos(t)-5*Math.cos(2*t)-2*Math.cos(3*t)-Math.cos(4*t))});}return o;};
+const startFinale=()=>{mode='finale';const N=56,tg=heartPts(N),src=[];
+  spec.forEach(s=>{const p=proj(s.v);src.push(p?{x:p.x,y:p.y,g:1}:{x:Math.random()*W,y:-20,g:1});});
+  const vis=stars.map(s=>proj(s.v)).filter(p=>p&&p.x>0&&p.x<W&&p.y>0&&p.y<H);
+  while(src.length<N){const p=vis[Math.random()*vis.length|0]||{x:Math.random()*W,y:Math.random()*H};src.push({x:p.x,y:p.y,g:0});}
+  const order=tg.map((_,i)=>i).sort(()=>Math.random()-.5);
+  fin={t0:performance.now(),pts:src.map((s,k)=>({...s,tx:tg[order[k]].x,ty:tg[order[k]].y,idx:order[k]})),tg};$('hint').style.opacity=0;};
+
+let HS=34;const setHS=()=>{HS=Math.max(30,Math.min(W,H)*.06);};setHS();addEventListener('resize',setHS);
+const beat=t=>{const m=t%1.1;return 1+.2*Math.exp(-(((m-.1)/.07)**2))+.13*Math.exp(-(((m-.36)/.07)**2));};
+const heart=(x,y,r)=>{cx.beginPath();cx.moveTo(x,y+r*.95);
+  cx.bezierCurveTo(x-r*1.35,y+r*.1,x-r*1.1,y-r*1.05,x,y-r*.45);
+  cx.bezierCurveTo(x+r*1.1,y-r*1.05,x+r*1.35,y+r*.1,x,y+r*.95);cx.closePath();};
+const ease=t=>t<.5?4*t*t*t:1-((-2*t+2)**3)/2;
+const glow=(x,y,r,col,a)=>{const g=cx.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,`rgba(${col},${a})`);g.addColorStop(1,`rgba(${col},0)`);cx.fillStyle=g;cx.beginPath();cx.arc(x,y,r,0,6.283);cx.fill();};
+
+const frame=t=>{const dt=Math.min(50,t-lastT||16);lastT=t;
+  if(!drag){yaw+=vy*dt;pitch+=vp*dt;vy+=((started&&mode==='explore'?.00005:.00008)-vy)*.02;vp*=.92;}
+  pitch=Math.max(-1.1,Math.min(1.1,pitch));
+  cx.fillStyle='#0f0819';cx.fillRect(0,0,W,H);
+  for(const n of neb){const p=proj(n.v);if(p)glow(p.x,p.y,F*.9/p.z,n.c,.22);}
+  const dim=mode==='finale'?.35:1,ts=t/1000;
+  for(const s of stars){const p=proj(s.v);if(!p||p.x<-5||p.x>W+5||p.y<-5||p.y>H+5)continue;
+    const a=(.45+.55*Math.abs(Math.sin(s.ph+ts*s.sp)))*dim;cx.fillStyle=`rgba(${s.c},${a})`;
+    const r=s.r*(1.1/p.z);if(r<1){cx.fillRect(p.x,p.y,r*1.6,r*1.6);}else{cx.beginPath();cx.arc(p.x,p.y,r,0,6.283);cx.fill();}
+    if(s.r>1.6)glow(p.x,p.y,r*5,s.c,.18*a);}
+  if(mode==='explore'){let left=0,right=0;
+    for(const s of spec){const p=proj(s.v);
+      if(p&&p.x>-60&&p.x<W+60&&p.y>-60&&p.y<H+60){s.sx=p.x;s.sy=p.y;s.on=true;
+        const pulse=beat(ts+s.i*.37);const col=s.found?'255,227,163':'255,127,163';const sz=HS*pulse;
+        glow(p.x,p.y,sz*2.6,col,s.found?.45:.6);
+        cx.shadowColor=s.found?'#ffe3a3':'#ff7fa3';cx.shadowBlur=18*pulse;
+        const g=cx.createLinearGradient(p.x,p.y-sz,p.x,p.y+sz);
+        if(s.found){g.addColorStop(0,'#fff6dc');g.addColorStop(1,'#f5c45e');}else{g.addColorStop(0,'#ffc2d4');g.addColorStop(1,'#e8457a');}
+        heart(p.x,p.y,sz);cx.fillStyle=g;cx.fill();cx.shadowBlur=0;
+        cx.lineWidth=2;cx.strokeStyle='rgba(255,255,255,.75)';cx.stroke();
+        cx.fillStyle='rgba(255,255,255,.55)';cx.beginPath();cx.ellipse(p.x-sz*.42,p.y-sz*.38,sz*.17,sz*.11,-.6,0,6.283);cx.fill();
+      }else{s.on=false;if(!s.found){const[x]=rot(s.v);x<0?left++:right++;}}}
+    if(started){const by=H/2,b=beat(ts);const edge=(x,d)=>{glow(x,by,60,'255,127,163',.4);const o=6*(b-1)*d;cx.strokeStyle='#ffc2d4';cx.lineWidth=4;cx.lineCap='round';cx.lineJoin='round';
+        for(const k of[0,14]){cx.beginPath();cx.moveTo(x+o+d*(k-8),by-14);cx.lineTo(x+o+d*(k-20),by);cx.lineTo(x+o+d*(k-8),by+14);cx.stroke();}};
+      if(left)edge(26,1);if(right)edge(W-26,-1);}}
+  if(mode==='finale'&&fin){const e=(t-fin.t0)/1000,k=ease(Math.min(1,e/2.6));
+    const L=Math.max(0,Math.min(1,(e-2.6)/2.2));
+    if(L>0){cx.strokeStyle='rgba(255,184,203,.7)';cx.lineWidth=1.3;cx.shadowColor='#ff7fa3';cx.shadowBlur=12;cx.beginPath();
+      const m=Math.floor(L*fin.tg.length);for(let i=0;i<=m&&i<=fin.tg.length;i++){const q=fin.tg[i%fin.tg.length];i?cx.lineTo(q.x,q.y):cx.moveTo(q.x,q.y);}cx.stroke();cx.shadowBlur=0;}
+    for(const p of fin.pts){const x=p.x+(p.tx-p.x)*k,y=p.y+(p.ty-p.y)*k;glow(x,y,p.g?24:14,p.g?'255,227,163':'255,184,203',.55);cx.fillStyle='#fff';cx.beginPath();cx.arc(x,y,p.g?3.4:2.2,0,6.283);cx.fill();}
+    const ta=Math.max(0,Math.min(1,(e-4.4)/1.4));
+    if(ta>0){cx.globalAlpha=ta;cx.fillStyle='#fff6e0';cx.textAlign='center';cx.textBaseline='middle';
+      cx.font=`italic 500 ${Math.round(Math.min(W*.13,H*.09))}px "Cormorant Garamond", Georgia, serif`;cx.shadowColor='#ff7fa3';cx.shadowBlur=24;
+      cx.fillText("B ♥ C",W/2,H*.3);cx.shadowBlur=0;cx.globalAlpha=1;}
+    if(e>5.4&&$('final').classList.contains('hide'))$('final').classList.remove('hide');}
+  requestAnimationFrame(frame);};
+requestAnimationFrame(frame);
+
+/* Interacción */
+const dots=$('dots');dots.innerHTML=spec.map(()=>'<i></i>').join('');
+const upd=()=>{const n=spec.filter(s=>s.found).length;$('cnt').textContent=`${n} de ${spec.length} corazones`;[...dots.children].forEach((d,i)=>d.classList.toggle('on',i<n));return n;};
+let current=null;
+const open=s=>{current=s;const first=!s.found;s.found=true;const n=upd();
+  $('mn').textContent=`Corazón ${s.i+1} de ${spec.length}`;$('mt').textContent=s.t;$('mp').textContent=s.p;
+  $('close').textContent=n===spec.length&&first?'Ver lo que formaste ✦':'Seguir buscando';$('modal').classList.remove('hide');vy=0;setTimeout(()=>$('close').focus(),50);};
+const closeM=()=>{$('modal').classList.add('hide');cv.focus();if(spec.every(s=>s.found)&&mode==='explore'&&!fin)setTimeout(startFinale,500);};
+$('close').addEventListener('click',closeM);
+addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('modal').classList.contains('hide'))closeM();});
+$('go').addEventListener('click',()=>{$('intro').classList.add('hide');started=true;cv.focus();setTimeout(()=>$('hint').style.opacity=.85,400);});
+$('again').addEventListener('click',()=>{$('final').classList.add('hide');mode='explore';fin=null;$('hint').style.opacity=.85;$('hint').textContent='Los corazones siguen aquí. Vuelve cuando quieras ♥';});
+
+const hit=(x,y)=>{let best=null,bd=HS*1.9;for(const s of spec){if(!s.on)continue;const d=Math.hypot(s.sx-x,s.sy-y);if(d<bd){bd=d;best=s;}}return best;};
+cv.addEventListener('pointerdown',e=>{if(!started)return;drag={x:e.clientX,y:e.clientY,sx:e.clientX,sy:e.clientY,t:performance.now()};cv.setPointerCapture(e.pointerId);cv.classList.add('drag');vy=0;vp=0;});
+cv.addEventListener('pointermove',e=>{if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y,dt=Math.max(1,performance.now()-drag.t);
+  yaw-=dx/F;pitch+=dy/F;vy=-dx/F/dt;vp=dy/F/dt;drag.x=e.clientX;drag.y=e.clientY;drag.t=performance.now();
+  if(Math.hypot(e.clientX-drag.sx,e.clientY-drag.sy)>8)$('hint').style.opacity=0;});
+const up=e=>{if(!drag)return;const moved=Math.hypot(e.clientX-drag.sx,e.clientY-drag.sy);drag=null;cv.classList.remove('drag');
+  if(moved<8&&mode==='explore'){const s=hit(e.clientX,e.clientY);if(s){vy=0;vp=0;open(s);}}};
+cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',()=>{drag=null;cv.classList.remove('drag');});
+cv.addEventListener('keydown',e=>{if(!started||mode!=='explore')return;const k=.08;
+  if(e.key==='ArrowLeft'){yaw-=k;vy=0;}else if(e.key==='ArrowRight'){yaw+=k;vy=0;}else if(e.key==='ArrowUp'){pitch+=k;}else if(e.key==='ArrowDown'){pitch-=k;}
+  else if(e.key==='Enter'||e.key===' '){let best=null,bd=1e9;for(const s of spec){if(!s.on)continue;const d=Math.hypot(s.sx-W/2,s.sy-H/2);if(d<bd){bd=d;best=s;}}if(best)open(best);}
+  else return;e.preventDefault();});
+}
+</script>
+</body>
+</html>
